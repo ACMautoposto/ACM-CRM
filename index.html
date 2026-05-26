@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ACM — CRM Troca de Óleo</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F5F3EE; --surface: #FFFFFF; --surface2: #EDEAE3; --border: #D8D4CB;
+  --text: #1A1916; --muted: #7A776F; --accent: #C8521A; --accent-light: #FAE8DC;
+  --accent-dark: #9E3D10; --green: #2E7D32; --green-light: #E8F5E9;
+  --amber: #B45309; --amber-light: #FEF3C7; --red: #B91C1C; --red-light: #FEE2E2;
+  --blue: #1E40AF; --blue-light: #DBEAFE; --radius: 10px; --radius-sm: 6px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+#loading-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+#loading-overlay.hidden { display: none; }
+.loading-spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: var(--muted); }
+.header { background: var(--text); color: #fff; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+.header-logo { font-size: 15px; font-weight: 600; letter-spacing: 0.04em; display: flex; align-items: center; gap: 10px; }
+.header-logo span { background: var(--accent); color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-family: 'DM Mono', monospace; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.header-date { font-size: 13px; color: rgba(255,255,255,0.5); font-family: 'DM Mono', monospace; }
+.sync-indicator { font-size: 11px; font-family: 'DM Mono', monospace; padding: 3px 8px; border-radius: 4px; }
+.sync-indicator.ok { background: rgba(46,125,50,0.3); color: #81C784; }
+.sync-indicator.saving { background: rgba(180,83,9,0.3); color: #FCD34D; }
+.sync-indicator.error { background: rgba(185,28,28,0.3); color: #F87171; }
+.nav { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; }
+.nav-btn { padding: 14px 18px; font-size: 14px; font-family: 'DM Sans', sans-serif; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color 0.15s; margin-bottom: -1px; }
+.nav-btn.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 500; }
+.nav-btn:hover:not(.active) { color: var(--text); }
+.badge-count { background: var(--red); color: #fff; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 99px; font-family: 'DM Mono', monospace; }
+.main { max-width: 820px; margin: 0 auto; padding: 24px 20px; }
+.metrics { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 24px; }
+.metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.metric-label { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px; }
+.metric-value { font-size: 26px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.metric-value.red { color: var(--red); }
+.metric-value.amber { color: var(--amber); }
+.metric-value.blue { color: var(--blue); }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.section-title { font-size: 15px; font-weight: 600; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+.return-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.return-item:last-child { border-bottom: none; }
+.return-item.urgent { background: #FFF5F5; border-left: 3px solid var(--red); }
+.return-item.warn { background: #FFFBEB; border-left: 3px solid #F59E0B; }
+.avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+.avatar.red { background: var(--red-light); color: var(--red); }
+.avatar.amber { background: var(--amber-light); color: var(--amber); }
+.item-info { flex: 1; min-width: 0; }
+.item-name { font-size: 14px; font-weight: 500; }
+.item-sub { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-actions { display: flex; gap: 6px; }
+.badge { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 99px; display: inline-block; font-family: 'DM Mono', monospace; }
+.badge-red { background: var(--red-light); color: var(--red); }
+.badge-amber { background: var(--amber-light); color: var(--amber); }
+.badge-green { background: var(--green-light); color: var(--green); }
+.badge-blue { background: var(--blue-light); color: var(--blue); }
+.btn { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; padding: 8px 16px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent-dark); }
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-ghost { background: none; border: 1px solid var(--border); color: var(--text); }
+.btn-ghost:hover { background: var(--surface2); }
+.btn-icon { width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; color: var(--muted); font-size: 15px; transition: all 0.15s; }
+.btn-icon:hover { background: var(--surface2); color: var(--text); }
+.btn-danger { background: none; border: 1px solid var(--border); color: var(--red); }
+.btn-danger:hover { background: var(--red-light); border-color: var(--red); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.03em; }
+.form-group input, .form-group select, .form-group textarea { font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); transition: border-color 0.15s; outline: none; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+.form-group textarea { height: 72px; resize: vertical; }
+.full { grid-column: 1 / -1; }
+.form-msg { font-size: 13px; margin-top: 10px; padding: 8px 12px; border-radius: var(--radius-sm); }
+.form-msg.ok { background: var(--green-light); color: var(--green); }
+.form-msg.err { background: var(--red-light); color: var(--red); }
+.section { display: none; }
+.section.active { display: block; }
+.filter-bar { display: flex; gap: 10px; margin-bottom: 14px; }
+.filter-bar input { flex: 1; font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); outline: none; }
+.filter-bar input:focus { border-color: var(--accent); }
+.filter-bar select { font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); outline: none; }
+.empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
+.empty-icon { font-size: 36px; margin-bottom: 10px; }
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+.modal-bg.open { display: flex; }
+.modal { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
+.modal-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+.history-item { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.history-item:last-child { border-bottom: none; }
+.history-date { color: var(--muted); font-family: 'DM Mono', monospace; }
+table.detail { width: 100%; font-size: 13px; border-collapse: collapse; }
+table.detail td { padding: 6px 0; vertical-align: top; }
+table.detail td:first-child { color: var(--muted); width: 130px; }
+.check-opt { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; transition: border-color 0.15s; user-select: none; }
+.check-opt:hover { border-color: var(--accent); }
+.check-opt input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink:0; }
+.check-opt.checked { border-color: var(--accent); background: var(--accent-light); }
+@media (max-width: 600px) {
+  .metrics { grid-template-columns: repeat(4, 1fr); }
+  .form-grid { grid-template-columns: 1fr; }
+  .full { grid-column: 1; }
+  .nav-btn span.label { display: none; }
+  .main { padding: 16px 12px; }
+}
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Carregando dados...</div>
+</div>
+
+<div class="header">
+  <div class="header-logo">ACM <span>ÓLEO</span></div>
+  <div class="header-right">
+    <span class="sync-indicator ok" id="sync-indicator">✓ salvo</span>
+    <div class="header-date" id="header-date"></div>
+  </div>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showTab('alertas')" id="tab-alertas-btn">🔔 <span class="label">Alertas</span> <span class="badge-count" id="alert-count" style="display:none"></span></button>
+  <button class="nav-btn" onclick="showTab('clientes')" id="tab-clientes-btn">👥 <span class="label">Clientes</span></button>
+  <button class="nav-btn" onclick="showTab('novo')" id="tab-novo-btn">➕ <span class="label">Novo atendimento</span></button>
+  <button class="nav-btn" onclick="showTab('naocompareceu')" id="tab-naocompareceu-btn">❌ <span class="label">Não compareceram</span> <span class="badge-count" id="nc-count" style="display:none"></span></button>
+  <button class="nav-btn" onclick="showTab('config')" id="tab-config-btn">⚙️ <span class="label">Configurações</span></button>
+</nav>
+
+<div class="main">
+  <div id="sec-alertas" class="section active">
+    <div class="metrics" id="metrics-area"></div>
+    <div class="section-header"><div class="section-title">Clientes para contatar</div></div>
+    <div id="alertas-list"></div>
+  </div>
+
+  <div id="sec-clientes" class="section">
+    <div class="filter-bar">
+      <input type="text" id="search-input" placeholder="Buscar por nome, placa ou telefone..." oninput="renderClientes()" />
+      <select onchange="renderClientes()" id="filter-status">
+        <option value="">Todos</option>
+        <option value="ok">Em dia</option>
+        <option value="alerta">Esta semana</option>
+        <option value="atrasado">Atrasado</option>
+        <option value="agendado">Agendado</option>
+        <option value="retornaram">Retornaram ✓</option>
+      </select>
+    </div>
+    <div id="clientes-list"></div>
+  </div>
+
+  <div id="sec-novo" class="section">
+    <div class="card" style="padding: 20px 22px;">
+      <div style="font-size:15px;font-weight:600;margin-bottom:18px;">Registrar novo atendimento</div>
+      <div class="form-grid">
+        <div class="form-group"><label>NOME DO CLIENTE *</label><input type="text" id="n-nome" placeholder="João Silva" /></div>
+        <div class="form-group"><label>TELEFONE *</label><input type="tel" id="n-tel" placeholder="(45) 99999-0000" /></div>
+        <div class="form-group"><label>PLACA DO VEÍCULO</label><input type="text" id="n-placa" placeholder="ABC-1D23" style="text-transform:uppercase" /></div>
+        <div class="form-group"><label>VEÍCULO / MODELO</label><input type="text" id="n-veiculo" placeholder="Gol 2019" /></div>
+        <div class="form-group full"><label>UNIDADE *</label><select id="n-unidade" style="font-family:'DM Sans',sans-serif;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);outline:none;width:100%;"></select></div>
+        <div class="form-group"><label>DATA DO SERVIÇO *</label><input type="date" id="n-data" /></div>
+        <div class="form-group"><label>RETORNO EM</label><select id="n-meses"><option value="1">1 mês</option><option value="2">2 meses</option><option value="3">3 meses</option><option value="4">4 meses</option><option value="5">5 meses</option><option value="6">6 meses</option><option value="7">7 meses</option><option value="8">8 meses</option><option value="9">9 meses</option><option value="10">10 meses</option><option value="11">11 meses</option><option value="12" selected>12 meses</option><option value="16">16 meses</option><option value="18">18 meses</option><option value="24">24 meses</option></select></div>
+        <div class="form-group"><label>VALOR DO SERVIÇO (R$)</label><input type="number" id="n-valor" placeholder="0,00" min="0" step="0.01" /></div>
+        <div class="form-group full"><label>FILTROS TROCADOS *</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+            <label class="check-opt"><input type="checkbox" id="f-oleo" /> <span>Filtro de óleo</span></label>
+            <label class="check-opt"><input type="checkbox" id="f-ar" /> <span>Filtro de ar</span></label>
+            <label class="check-opt"><input type="checkbox" id="f-comb" /> <span>Filtro de combustível</span></label>
+            <label class="check-opt"><input type="checkbox" id="f-cabine" /> <span>Filtro de cabine</span></label>
+          </div>
+        </div>
+        <div class="form-group full"><label>OBSERVAÇÃO</label><textarea id="n-obs" placeholder="Informações adicionais..."></textarea></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px;">
+        <button class="btn btn-primary" onclick="salvarCliente()">✓ Salvar atendimento</button>
+        <button class="btn btn-ghost" onclick="limparForm()">Limpar</button>
+      </div>
+      <div id="form-msg"></div>
+    </div>
+  </div>
+
+  <div id="sec-config" class="section">
+    <div style="font-size:15px;font-weight:600;margin-bottom:16px;">⚙️ Configurações</div>
+    <div class="card" style="padding:20px 22px;margin-bottom:16px;">
+      <div style="font-size:14px;font-weight:600;margin-bottom:14px;">Unidades cadastradas</div>
+      <div id="unidades-list" style="margin-bottom:16px;"></div>
+      <hr/>
+      <div style="font-size:14px;font-weight:600;margin-bottom:10px;">Adicionar nova unidade</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="nova-unidade-input" placeholder="Nome da nova unidade..." style="flex:1;font-family:'DM Sans',sans-serif;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);outline:none;" />
+        <button class="btn btn-primary" onclick="adicionarUnidade()">Adicionar</button>
+      </div>
+      <div id="config-msg" style="margin-top:10px;font-size:13px;"></div>
+    </div>
+  </div>
+
+  <div id="sec-naocompareceu" class="section">
+    <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Agendamentos não comparecidos</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Clientes que agendaram mas não apareceram.</div>
+    <div id="nc-list"></div>
+  </div>
+</div>
+
+<!-- MODAL CONTATO -->
+<div class="modal-bg" id="modal-contato">
+  <div class="modal">
+    <div class="modal-title" id="mc-title">Registrar contato</div>
+    <div class="form-grid" style="grid-template-columns:1fr;">
+      <div class="form-group" id="mc-unidade-group" style="display:none;">
+        <label>UNIDADE DO AGENDAMENTO</label>
+        <select id="mc-unidade" style="font-family:'DM Sans',sans-serif;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);outline:none;width:100%;"></select>
+      </div>
+      <div class="form-group"><label>RESULTADO DO CONTATO *</label>
+        <select id="mc-resultado" onchange="toggleUnidadeAgendamento()">
+          <option value="">Selecionar...</option>
+          <option value="Agendou nova troca ✅">Agendou nova troca ✅</option>
+          <option value="Não atendeu">Não atendeu</option>
+          <option value="Vai ligar de volta">Vai ligar de volta</option>
+          <option value="Não tem interesse">Não tem interesse</option>
+          <option value="Número errado">Número errado</option>
+          <option value="Outro">Outro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>OBSERVAÇÃO</label><textarea id="mc-obs" placeholder="Ex: disse que liga semana que vem..."></textarea></div>
+      <div class="form-group"><label>PRÓXIMO CONTATO (se necessário)</label><input type="date" id="mc-proxdata" /></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="salvarContato()">Salvar</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-contato')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DUPLICADO -->
+<div class="modal-bg" id="modal-dup">
+  <div class="modal">
+    <div class="modal-title">⚠️ Cliente já cadastrado</div>
+    <div id="dup-body" style="font-size:14px;color:var(--muted);margin-bottom:16px;line-height:1.6"></div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px;">O que deseja fazer?</div>
+    <div class="modal-actions" style="flex-direction:column;gap:8px;">
+      <button class="btn btn-primary" style="width:100%;text-align:left;padding:12px 16px;" onclick="atualizarClienteExistente()">♻️ Atualizar cadastro existente com nova troca de óleo</button>
+      <button class="btn btn-ghost" style="width:100%;text-align:left;padding:12px 16px;" onclick="fecharModal('modal-dup')">✏️ Voltar e corrigir os dados</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VER CLIENTE -->
+<div class="modal-bg" id="modal-ver">
+  <div class="modal">
+    <div class="modal-title" id="mv-title"></div>
+    <div id="mv-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="abrirContato(currentViewId)">📞 Registrar contato</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-ver')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIREBASE SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ─── FIREBASE CONFIG ──────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyD9pJPppo2_-CFuoGYDkUAIATRqhfb_gDU",
+  authDomain: "acm-crm-d20a4.firebaseapp.com",
+  projectId: "acm-crm-d20a4",
+  storageBucket: "acm-crm-d20a4.firebasestorage.app",
+  messagingSenderId: "119604708875",
+  appId: "1:119604708875:web:90acd436e09784c2ee290e"
+};
+
+const app = initializeApp(firebaseConfig);
+const db_fs = getFirestore(app);
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let db = [];
+let unidades = [];
+let currentContactId = null;
+let currentViewId = null;
+let pendingNovaVisita = null;
+const DEFAULT_UNIDADES = ['ACM Auto Posto Lubrax +', 'ACM Avenida Jet Oil'];
+
+// ─── SYNC ────────────────────────────────────────────────────────────────────
+function setSyncStatus(status, text) {
+  const el = document.getElementById('sync-indicator');
+  el.className = 'sync-indicator ' + status;
+  el.textContent = text;
+}
+
+// ─── FIRESTORE ───────────────────────────────────────────────────────────────
+async function loadDB() {
+  try {
+    const snap = await getDocs(collection(db_fs, 'clientes'));
+    db = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) { db = []; console.error(e); }
+}
+
+async function saveCliente(c) {
+  setSyncStatus('saving', '⟳ salvando...');
+  try {
+    await setDoc(doc(db_fs, 'clientes', c.id), c);
+    setSyncStatus('ok', '✓ salvo');
+  } catch(e) { setSyncStatus('error', '✗ erro ao salvar'); console.error(e); }
+}
+
+async function deleteCliente(id) {
+  setSyncStatus('saving', '⟳ salvando...');
+  try {
+    await deleteDoc(doc(db_fs, 'clientes', id));
+    setSyncStatus('ok', '✓ salvo');
+  } catch(e) { setSyncStatus('error', '✗ erro'); console.error(e); }
+}
+
+async function loadUnidades() {
+  try {
+    const snap = await getDocs(collection(db_fs, 'config'));
+    const doc_ = snap.docs.find(d => d.id === 'unidades');
+    unidades = doc_ ? doc_.data().lista : [...DEFAULT_UNIDADES];
+  } catch(e) { unidades = [...DEFAULT_UNIDADES]; }
+}
+
+async function saveUnidades() {
+  try {
+    await setDoc(doc(db_fs, 'config', 'unidades'), { lista: unidades });
+  } catch(e) { console.error(e); }
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function fmt(d) { return d.toISOString().split('T')[0]; }
+function parseDate(s) { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+function fmtBR(s) { if(!s) return '—'; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; }
+function diasDiff(a, b) { return Math.round((a - b) / 86400000); }
+function initials(nome) { return nome.split(' ').filter(Boolean).slice(0,2).map(p=>p[0]).join('').toUpperCase(); }
+function fmtReal(v) { return 'R$ ' + Number(v||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+function getStatus(c) {
+  if (c.status === 'agendado') {
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const dataAgend = c.dataAgendamento ? parseDate(c.dataAgendamento) : null;
+    if (dataAgend && diasDiff(hoje, dataAgend) > 0) return 'naocompareceu';
+    return 'agendado';
+  }
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const ret = parseDate(c.retornoEm);
+  const diff = diasDiff(ret, hoje);
+  if (diff < 0) return 'atrasado';
+  if (diff <= 7) return 'alerta';
+  return 'ok';
+}
+
+function badgeHtml(status) {
+  const map = { ok:['badge-green','Em dia'], alerta:['badge-amber','Esta semana'], atrasado:['badge-red','Atrasado'], agendado:['badge-blue','Agendado'], naocompareceu:['badge-red','Não compareceu'] };
+  const [cls, txt] = map[status] || ['badge-green','Em dia'];
+  return `<span class="badge ${cls}">${txt}</span>`;
+}
+
+// ─── UNIDADES ────────────────────────────────────────────────────────────────
+function populateUnidadeSelects() {
+  ['n-unidade','mc-unidade'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const val = sel.value;
+    sel.innerHTML = '<option value="">Selecionar unidade...</option>' + unidades.map(u => `<option value="${u}"${val===u?' selected':''}>${u}</option>`).join('');
+  });
+}
+
+function renderUnidadesList() {
+  const el = document.getElementById('unidades-list');
+  if (!el) return;
+  if (!unidades.length) { el.innerHTML = '<div style="font-size:13px;color:var(--muted)">Nenhuma unidade cadastrada.</div>'; return; }
+  el.innerHTML = unidades.map((u,i) => `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border);"><span style="flex:1;font-size:14px;">${u}</span><button class="btn-icon" onclick="editarUnidade(${i})">✏️</button><button class="btn-icon btn-danger" onclick="removerUnidade(${i})">🗑</button></div>`).join('');
+}
+
+window.adicionarUnidade = async function() {
+  const input = document.getElementById('nova-unidade-input');
+  const nome = input.value.trim();
+  if (!nome || unidades.includes(nome)) return;
+  unidades.push(nome);
+  await saveUnidades();
+  input.value = '';
+  renderUnidadesList();
+  populateUnidadeSelects();
+  document.getElementById('config-msg').textContent = '✓ Unidade adicionada.';
+  setTimeout(() => { document.getElementById('config-msg').textContent = ''; }, 3000);
+}
+
+window.removerUnidade = async function(i) {
+  if (!confirm('Remover "' + unidades[i] + '"?')) return;
+  unidades.splice(i, 1);
+  await saveUnidades();
+  renderUnidadesList();
+  populateUnidadeSelects();
+}
+
+window.editarUnidade = async function(i) {
+  const novo = prompt('Novo nome:', unidades[i]);
+  if (!novo || !novo.trim()) return;
+  unidades[i] = novo.trim();
+  await saveUnidades();
+  renderUnidadesList();
+  populateUnidadeSelects();
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+window.showTab = function(tab) {
+  ['alertas','clientes','novo','naocompareceu','config'].forEach(t => {
+    document.getElementById('sec-'+t).classList.toggle('active', t===tab);
+    document.getElementById('tab-'+t+'-btn').classList.toggle('active', t===tab);
+  });
+  if (tab === 'alertas') renderAlertas();
+  if (tab === 'clientes') renderClientes();
+  if (tab === 'naocompareceu') renderNaoCompareceu();
+  if (tab === 'config') { renderUnidadesList(); populateUnidadeSelects(); }
+}
+
+// ─── METRICS ─────────────────────────────────────────────────────────────────
+function renderMetrics() {
+  let atrasados=0, alertas=0, agendados=0, naocompareceu=0;
+  db.forEach(c => {
+    const s = getStatus(c);
+    if(s==='atrasado') atrasados++;
+    else if(s==='alerta') alertas++;
+    else if(s==='agendado') agendados++;
+    else if(s==='naocompareceu') naocompareceu++;
+  });
+  const ncEl = document.getElementById('nc-count');
+  if(ncEl){ ncEl.textContent=naocompareceu; ncEl.style.display=naocompareceu>0?'inline-block':'none'; }
+  const alertCount = atrasados + alertas;
+  const el = document.getElementById('alert-count');
+  el.textContent = alertCount;
+  el.style.display = alertCount > 0 ? 'inline-block' : 'none';
+  const retornaram = db.filter(c => c.visitas && c.visitas.length > 0).length;
+  const taxaRetorno = db.length > 0 ? Math.round((retornaram / db.length) * 100) : 0;
+  let valorTotal = 0, valorRetorno = 0;
+  db.forEach(c => {
+    valorTotal += c.valor || 0;
+    if (c.visitas && c.visitas.length > 0) {
+      valorRetorno += c.valor || 0;
+      c.visitas.forEach(v => { valorTotal += v.valor || 0; valorRetorno += v.valor || 0; });
+    } else {
+      (c.visitas||[]).forEach(v => { valorTotal += v.valor || 0; });
+    }
+  });
+  document.getElementById('metrics-area').innerHTML = `
+    <div class="metric"><div class="metric-label">Faturamento total</div><div class="metric-value" style="font-size:16px;color:var(--accent)">${fmtReal(valorTotal)}</div></div>
+    <div class="metric"><div class="metric-label">Total de clientes</div><div class="metric-value">${db.length}</div></div>
+    <div class="metric"><div class="metric-label">Atrasados</div><div class="metric-value red">${atrasados}</div></div>
+    <div class="metric"><div class="metric-label">Esta semana</div><div class="metric-value amber">${alertas}</div></div>
+    <div class="metric"><div class="metric-label">Agendados</div><div class="metric-value blue">${agendados}</div></div>
+    <div class="metric"><div class="metric-label">Taxa de retorno</div><div class="metric-value" style="color:var(--green)">${taxaRetorno}%</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${retornaram} voltaram</div></div>
+    <div class="metric"><div class="metric-label">Valor de retorno</div><div class="metric-value" style="font-size:16px;color:var(--green)">${fmtReal(valorRetorno)}</div></div>
+  `;
+}
+
+// ─── ALERTAS ─────────────────────────────────────────────────────────────────
+function renderAlertas() {
+  renderMetrics();
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const lista = db.filter(c => { const s=getStatus(c); return s==='atrasado'||s==='alerta'; }).sort((a,b) => parseDate(a.retornoEm)-parseDate(b.retornoEm));
+  if (!lista.length) { document.getElementById('alertas-list').innerHTML = '<div class="empty"><div class="empty-icon">✅</div>Nenhum cliente pendente de contato. Bom trabalho!</div>'; return; }
+  document.getElementById('alertas-list').innerHTML = `<div class="card">` + lista.map(c => {
+    const s = getStatus(c);
+    const diff = diasDiff(parseDate(c.retornoEm), hoje);
+    const diffTxt = diff === 0 ? 'Hoje' : diff < 0 ? `${Math.abs(diff)} dias atrasado` : `daqui ${diff} dias`;
+    const cls = diff < 0 ? 'urgent' : 'warn';
+    const avCls = diff < 0 ? 'red' : 'amber';
+    const ult = c.contatos?.length ? c.contatos[c.contatos.length-1] : null;
+    return `<div class="return-item ${cls}"><div class="avatar ${avCls}">${initials(c.nome)}</div><div class="item-info"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="item-name">${c.nome}</span>${badgeHtml(s)}<span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace">${diffTxt}</span></div><div class="item-sub">${c.veiculo||'—'} · ${c.placa||'—'} · ${c.tel}</div>${ult ? `<div style="font-size:12px;color:var(--muted);margin-top:3px">Último contato: ${fmtBR(ult.data)} — ${ult.resultado}</div>` : ''}</div><div class="item-actions"><button class="btn-icon" onclick="verCliente('${c.id}')">👁</button><button class="btn-icon" onclick="abrirContato('${c.id}')">📞</button></div></div>`;
+  }).join('') + '</div>';
+}
+
+// ─── CLIENTES ────────────────────────────────────────────────────────────────
+window.renderClientes = function() {
+  const busca = (document.getElementById('search-input')?.value||'').toLowerCase();
+  const filtStatus = document.getElementById('filter-status')?.value||'';
+  const lista = db.filter(c => {
+    const match = !busca || c.nome.toLowerCase().includes(busca) || (c.placa||'').toLowerCase().includes(busca) || c.tel.includes(busca);
+    let statusMatch = true;
+    if (filtStatus === 'retornaram') statusMatch = c.visitas && c.visitas.length > 0;
+    else if (filtStatus) statusMatch = getStatus(c) === filtStatus;
+    return match && statusMatch;
+  }).sort((a,b) => parseDate(b.dataServico)-parseDate(a.dataServico));
+  if (!lista.length) { document.getElementById('clientes-list').innerHTML = '<div class="empty"><div class="empty-icon">🔍</div>Nenhum cliente encontrado.</div>'; return; }
+  document.getElementById('clientes-list').innerHTML = `<div class="card">` + lista.map(c => {
+    const s = getStatus(c);
+    const voltou = c.visitas && c.visitas.length > 0;
+    return `<div class="return-item"><div class="avatar">${initials(c.nome)}</div><div class="item-info"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="item-name">${c.nome}</span>${badgeHtml(s)}${voltou ? `<span class="badge badge-green">↩ Retornou</span>` : ''}</div><div class="item-sub">${c.veiculo||'—'} · ${c.placa||'—'} · Retorno: ${fmtBR(c.retornoEm)}</div></div><div class="item-actions"><button class="btn-icon" onclick="verCliente('${c.id}')">👁</button><button class="btn-icon" onclick="abrirContato('${c.id}')">📞</button><button class="btn-icon btn-danger" onclick="excluirCliente('${c.id}')">🗑</button></div></div>`;
+  }).join('') + '</div>';
+}
+
+// ─── NÃO COMPARECEU ──────────────────────────────────────────────────────────
+function renderNaoCompareceu() {
+  const lista = db.filter(c => getStatus(c) === 'naocompareceu').sort((a,b) => { const da = a.dataAgendamento ? parseDate(a.dataAgendamento) : new Date(0); const db2 = b.dataAgendamento ? parseDate(b.dataAgendamento) : new Date(0); return da - db2; });
+  if (!lista.length) { document.getElementById('nc-list').innerHTML = '<div class="empty"><div class="empty-icon">✅</div>Nenhum agendamento não comparecido.</div>'; return; }
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  document.getElementById('nc-list').innerHTML = `<div class="card">` + lista.map(c => {
+    const diasAtraso = c.dataAgendamento ? diasDiff(hoje, parseDate(c.dataAgendamento)) : '?';
+    return `<div class="return-item urgent"><div class="avatar red">${initials(c.nome)}</div><div class="item-info"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="item-name">${c.nome}</span><span class="badge badge-red">Não compareceu</span><span style="font-size:12px;color:var(--red);font-family:'DM Mono',monospace">${diasAtraso} dia(s)</span></div><div class="item-sub">${c.veiculo||'—'} · ${c.placa||'—'} · ${c.tel}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Data agendada: ${fmtBR(c.dataAgendamento||'')}${c.unidadeAgendamento ? ' · '+c.unidadeAgendamento : ''}</div></div><div class="item-actions"><button class="btn-icon" onclick="verCliente('${c.id}')">👁</button><button class="btn-icon" onclick="abrirContato('${c.id}')">📞</button></div></div>`;
+  }).join('') + '</div>';
+}
+
+// ─── FORM ────────────────────────────────────────────────────────────────────
+function coletarDadosForm() {
+  const dataS = document.getElementById('n-data').value;
+  const meses = parseInt(document.getElementById('n-meses').value);
+  const dataSv = parseDate(dataS);
+  const retorno = new Date(dataSv); retorno.setMonth(retorno.getMonth() + meses);
+  return {
+    nome: document.getElementById('n-nome').value.trim(),
+    tel: document.getElementById('n-tel').value.trim(),
+    placa: document.getElementById('n-placa').value.trim().toUpperCase(),
+    veiculo: document.getElementById('n-veiculo').value.trim(),
+    unidade: document.getElementById('n-unidade').value,
+    dataServico: fmt(dataSv),
+    retornoEm: fmt(retorno),
+    servico: 'Troca de óleo',
+    valor: parseFloat(document.getElementById('n-valor').value) || 0,
+    filtros: { oleo: document.getElementById('f-oleo').checked, ar: document.getElementById('f-ar').checked, combustivel: document.getElementById('f-comb').checked, cabine: document.getElementById('f-cabine').checked },
+    obs: document.getElementById('n-obs').value.trim()
+  };
+}
+
+window.salvarCliente = async function() {
+  const nome = document.getElementById('n-nome').value.trim();
+  const tel = document.getElementById('n-tel').value.trim();
+  const dataS = document.getElementById('n-data').value;
+  if (!nome || !tel || !dataS) { showMsg('Preencha nome, telefone e data.', 'err'); return; }
+  if (!document.getElementById('n-unidade').value) { showMsg('Selecione a unidade.', 'err'); return; }
+  const dados = coletarDadosForm();
+  const dup = db.find(c => (dados.placa && c.placa && c.placa === dados.placa) || (dados.tel && c.tel && c.tel.replace(/\D/g,'') === dados.tel.replace(/\D/g,'')));
+  if (dup) {
+    pendingNovaVisita = { clienteId: dup.id, dados };
+    document.getElementById('dup-body').innerHTML = `<strong>${dup.nome}</strong> já está cadastrado.<br>Placa: ${dup.placa||'—'} · Tel: ${dup.tel}<br>Última troca: ${fmtBR(dup.dataServico)}<br>Visitas anteriores: ${(dup.visitas||[]).length + 1}`;
+    document.getElementById('modal-dup').classList.add('open');
+    return;
+  }
+  await criarNovoCliente(dados);
+}
+
+async function criarNovoCliente(dados) {
+  const novoCliente = { id: Date.now().toString(), ...dados, visitas: [], contatos: [], status: 'ok' };
+  db.push(novoCliente);
+  await saveCliente(novoCliente);
+  showMsg(`✓ ${dados.nome} salvo! Retorno: ${fmtBR(dados.retornoEm)}.`, 'ok');
+  limparForm(true);
+  renderMetrics();
+}
+
+window.atualizarClienteExistente = async function() {
+  if (!pendingNovaVisita) return;
+  const { clienteId, dados } = pendingNovaVisita;
+  const c = db.find(x => x.id === clienteId);
+  if (!c) return;
+  if (!c.visitas) c.visitas = [];
+  c.visitas.push({ dataServico: c.dataServico, servico: c.servico, valor: c.valor || 0, filtros: c.filtros, obs: c.obs });
+  c.dataServico = dados.dataServico;
+  c.retornoEm = dados.retornoEm;
+  c.servico = dados.servico;
+  c.valor = dados.valor || 0;
+  c.filtros = dados.filtros;
+  if (dados.unidade) c.unidade = dados.unidade;
+  if (dados.obs) c.obs = dados.obs;
+  c.status = 'ok';
+  c.dataAgendamento = null;
+  await saveCliente(c);
+  fecharModal('modal-dup');
+  showMsg(`✓ ${c.nome} atualizado! ${c.visitas.length + 1}ª visita. Retorno: ${fmtBR(dados.retornoEm)}.`, 'ok');
+  limparForm(true);
+  renderMetrics();
+  pendingNovaVisita = null;
+}
+
+window.excluirCliente = async function(id) {
+  if (!confirm('Excluir este cliente?')) return;
+  db = db.filter(x => x.id !== String(id));
+  await deleteCliente(String(id));
+  renderClientes();
+  renderMetrics();
+}
+
+window.limparForm = function(mantMsg) {
+  ['n-nome','n-tel','n-placa','n-veiculo','n-obs','n-valor'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('n-data').value = fmt(new Date());
+  document.getElementById('n-meses').value = '12';
+  ['f-oleo','f-ar','f-comb','f-cabine'].forEach(id => { const el = document.getElementById(id); if(el){ el.checked=false; el.closest('.check-opt').classList.remove('checked'); } });
+  if (!mantMsg) document.getElementById('form-msg').innerHTML = '';
+}
+
+function showMsg(txt, tipo) {
+  const el = document.getElementById('form-msg');
+  el.className = 'form-msg ' + tipo;
+  el.textContent = txt;
+  if (tipo === 'ok') setTimeout(() => { el.innerHTML = ''; el.className = ''; }, 5000);
+}
+
+// ─── CONTATOS ────────────────────────────────────────────────────────────────
+window.toggleUnidadeAgendamento = function() {
+  const resultado = document.getElementById('mc-resultado').value;
+  const grupo = document.getElementById('mc-unidade-group');
+  if (resultado.includes('Agendou')) { grupo.style.display = 'flex'; grupo.style.flexDirection = 'column'; grupo.style.gap = '5px'; }
+  else { grupo.style.display = 'none'; document.getElementById('mc-unidade').value = ''; }
+}
+
+window.abrirContato = function(id) {
+  currentContactId = id;
+  const c = db.find(x => x.id === String(id));
+  if (!c) return;
+  document.getElementById('mc-title').textContent = `Contato — ${c.nome}`;
+  document.getElementById('mc-resultado').value = '';
+  document.getElementById('mc-obs').value = '';
+  document.getElementById('mc-proxdata').value = '';
+  document.getElementById('mc-unidade').value = '';
+  document.getElementById('mc-unidade-group').style.display = 'none';
+  fecharModal('modal-ver');
+  document.getElementById('modal-contato').classList.add('open');
+}
+
+window.salvarContato = async function() {
+  const resultado = document.getElementById('mc-resultado').value;
+  if (!resultado) { alert('Selecione o resultado.'); return; }
+  if (resultado.includes('Agendou') && !document.getElementById('mc-unidade').value) { alert('Selecione a unidade.'); return; }
+  const c = db.find(x => x.id === String(currentContactId));
+  if (!c) return;
+  const obs = document.getElementById('mc-obs').value;
+  const proxdata = document.getElementById('mc-proxdata').value;
+  if (!c.contatos) c.contatos = [];
+  c.contatos.push({ data: fmt(new Date()), resultado, obs });
+  if (resultado.includes('Agendou')) { c.status = 'agendado'; c.dataAgendamento = proxdata || fmt(new Date()); const u = document.getElementById('mc-unidade').value; if(u) c.unidadeAgendamento = u; }
+  else if (proxdata) { c.retornoEm = proxdata; c.status = 'ok'; }
+  await saveCliente(c);
+  fecharModal('modal-contato');
+  renderAlertas();
+  renderClientes();
+}
+
+// ─── VER CLIENTE ─────────────────────────────────────────────────────────────
+window.verCliente = function(id) {
+  currentViewId = id;
+  const c = db.find(x => x.id === String(id));
+  if (!c) return;
+  document.getElementById('mv-title').textContent = c.nome;
+  const fMap = { oleo: 'Filtro de óleo', ar: 'Filtro de ar', combustivel: 'Filtro de combustível', cabine: 'Filtro de cabine' };
+  const fHtml = c.filtros ? Object.entries(fMap).map(([k,v]) => { const ok = c.filtros[k]; return `<span style="font-size:12px;padding:3px 9px;border-radius:99px;margin-right:4px;background:${ok?'var(--green-light)':'var(--red-light)'};color:${ok?'var(--green)':'var(--red)'};">${ok?'✓':'✗'} ${v}</span>`; }).join('') : '—';
+  document.getElementById('mv-body').innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${badgeHtml(getStatus(c))}</div>
+    <table class="detail">
+      <tr><td>Unidade</td><td>${c.unidade||'—'}</td></tr>
+      <tr><td>Telefone</td><td>${c.tel}</td></tr>
+      <tr><td>Veículo</td><td>${c.veiculo||'—'} · ${c.placa||'—'}</td></tr>
+      <tr><td>Último serviço</td><td>${fmtBR(c.dataServico)}</td></tr>
+      <tr><td>Valor</td><td>${c.valor ? fmtReal(c.valor) : '—'}</td></tr>
+      <tr><td>Retorno em</td><td>${fmtBR(c.retornoEm)}</td></tr>
+      <tr><td style="vertical-align:top;padding-top:8px">Filtros</td><td><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${fHtml}</div></td></tr>
+      ${c.obs ? `<tr><td>Obs</td><td>${c.obs}</td></tr>` : ''}
+    </table>
+    <hr/>
+    <div style="font-size:13px;font-weight:600;margin-bottom:6px">Visitas anteriores (${(c.visitas||[]).length})</div>
+    ${(c.visitas||[]).length ? c.visitas.map(v=>`<div class="history-item"><span class="history-date">${fmtBR(v.dataServico)}</span> — Troca de óleo${v.valor ? ' · <strong>'+fmtReal(v.valor)+'</strong>' : ''}</div>`).join('') : '<div style="font-size:13px;color:var(--muted);margin-bottom:8px">Primeira visita.</div>'}
+    <hr/>
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px">Histórico de contatos (${(c.contatos||[]).length})</div>
+    ${(c.contatos||[]).length ? c.contatos.map(ct=>`<div class="history-item"><span class="history-date">${fmtBR(ct.data)}</span> — <strong>${ct.resultado}</strong>${ct.obs ? ' · '+ct.obs : ''}</div>`).join('') : '<div style="font-size:13px;color:var(--muted)">Nenhum contato registrado.</div>'}
+  `;
+  document.getElementById('modal-ver').classList.add('open');
+}
+
+window.fecharModal = function(id) { document.getElementById(id).classList.remove('open'); }
+
+// ─── CHECKBOX ────────────────────────────────────────────────────────────────
+document.querySelectorAll('.check-opt').forEach(label => {
+  label.addEventListener('change', () => { label.classList.toggle('checked', label.querySelector('input').checked); });
+});
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+async function init() {
+  document.getElementById('header-date').textContent = new Date().toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+  document.getElementById('n-data').value = fmt(new Date());
+  await loadDB();
+  await loadUnidades();
+  populateUnidadeSelects();
+  renderAlertas();
+  document.getElementById('loading-overlay').classList.add('hidden');
+}
+
+init();
+</script>
+</body>
+</html>
