@@ -102,10 +102,14 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .form-msg.err { background: var(--red-light); color: var(--red); }
 .section { display: none; }
 .section.active { display: block; }
-.filter-bar { display: flex; gap: 10px; margin-bottom: 14px; }
-.filter-bar input { flex: 1; font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); outline: none; }
-.filter-bar input:focus { border-color: var(--accent); }
+.filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.filter-bar input[type=text] { flex: 1; min-width: 160px; font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); outline: none; }
+.filter-bar input[type=text]:focus { border-color: var(--accent); }
+.filter-bar input[type=date] { font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); outline: none; }
+.filter-bar input[type=date]:focus { border-color: var(--accent); }
 .filter-bar select { font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); outline: none; }
+.filter-bar .btn-clear-date { font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface2); color: var(--muted); cursor: pointer; white-space: nowrap; }
+.filter-bar .btn-clear-date:hover { background: var(--border); }
 .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
 .empty-icon { font-size: 36px; margin-bottom: 10px; }
 .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
@@ -184,6 +188,8 @@ table.detail td:first-child { color: var(--muted); width: 130px; }
 <div id="sec-clientes" class="section">
 <div class="filter-bar">
 <input type="text" id="search-input" placeholder="Buscar por nome, placa ou telefone..." oninput="renderClientes()" />
+<input type="date" id="filter-data" onchange="renderClientes()" title="Filtrar por data do serviço" />
+<button class="btn-clear-date" onclick="limparFiltroData()" title="Limpar filtro de data">✕ data</button>
 <select onchange="renderClientes()" id="filter-status">
 <option value="">Todos</option>
 <option value="ok">Em dia</option>
@@ -301,7 +307,40 @@ table.detail td:first-child { color: var(--muted); width: 130px; }
 <div id="mv-body"></div>
 <div class="modal-actions">
 <button class="btn btn-primary" onclick="abrirContato(currentViewId)">📞 Registrar contato</button>
+<button class="btn btn-ghost" style="background:var(--blue-light);color:var(--blue);border-color:var(--blue);" onclick="abrirEdicao(currentViewId)">✏️ Editar</button>
 <button class="btn btn-ghost" onclick="fecharModal('modal-ver')">Fechar</button>
+</div>
+</div>
+</div>
+
+<!-- MODAL EDITAR CLIENTE -->
+<div class="modal-bg" id="modal-edit">
+<div class="modal" style="max-width:540px;">
+<div class="modal-title">✏️ Editar cadastro</div>
+<div class="form-grid">
+<div class="form-group"><label>NOME DO CLIENTE *</label><input type="text" id="e-nome" /></div>
+<div class="form-group"><label>TELEFONE *</label><input type="tel" id="e-tel" /></div>
+<div class="form-group"><label>PLACA DO VEÍCULO</label><input type="text" id="e-placa" style="text-transform:uppercase" /></div>
+<div class="form-group"><label>VEÍCULO / MODELO</label><input type="text" id="e-veiculo" /></div>
+<div class="form-group full"><label>UNIDADE *</label><select id="e-unidade" style="font-family:'DM Sans',sans-serif;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);outline:none;width:100%;"></select></div>
+<div class="form-group"><label>DATA DO SERVIÇO *</label><input type="date" id="e-data" /></div>
+<div class="form-group"><label>RETORNO EM (meses)</label><select id="e-meses"><option value="1">1 mês</option><option value="2">2 meses</option><option value="3">3 meses</option><option value="4">4 meses</option><option value="5">5 meses</option><option value="6">6 meses</option><option value="7">7 meses</option><option value="8">8 meses</option><option value="9">9 meses</option><option value="10">10 meses</option><option value="11">11 meses</option><option value="12" selected>12 meses</option><option value="16">16 meses</option><option value="18">18 meses</option><option value="24">24 meses</option></select></div>
+<div class="form-group"><label>QUILOMETRAGEM (KM)</label><input type="number" id="e-km" min="0" step="1" /></div>
+<div class="form-group"><label>VALOR DO SERVIÇO (R$)</label><input type="number" id="e-valor" min="0" step="0.01" /></div>
+<div class="form-group full"><label>FILTROS TROCADOS</label>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+<label class="check-opt" id="ef-oleo-label"><input type="checkbox" id="ef-oleo" /> <span>Filtro de óleo</span></label>
+<label class="check-opt" id="ef-ar-label"><input type="checkbox" id="ef-ar" /> <span>Filtro de ar</span></label>
+<label class="check-opt" id="ef-comb-label"><input type="checkbox" id="ef-comb" /> <span>Filtro de combustível</span></label>
+<label class="check-opt" id="ef-cabine-label"><input type="checkbox" id="ef-cabine" /> <span>Filtro de cabine</span></label>
+</div>
+</div>
+<div class="form-group full"><label>OBSERVAÇÃO</label><textarea id="e-obs"></textarea></div>
+</div>
+<div id="edit-msg" style="margin-top:8px;font-size:13px;"></div>
+<div class="modal-actions">
+<button class="btn btn-primary" onclick="salvarEdicao()">✓ Salvar alterações</button>
+<button class="btn btn-ghost" onclick="fecharModal('modal-edit')">Cancelar</button>
 </div>
 </div>
 </div>
@@ -323,7 +362,7 @@ appId: "1:119604708875:web:90acd436e09784c2ee290e"
 const app = initializeApp(firebaseConfig);
 const db_fs = getFirestore(app);
 const auth = getAuth(app);
-let db = [], unidades = [], currentContactId = null, currentViewId = null, pendingNovaVisita = null;
+let db = [], unidades = [], currentContactId = null, currentViewId = null, currentEditId = null, pendingNovaVisita = null;
 const DEFAULT_UNIDADES = ['ACM Auto Posto Lubrax +', 'ACM Avenida Jet Oil'];
 
 onAuthStateChanged(auth, async (user) => {
@@ -418,7 +457,7 @@ return `<span class="badge ${cls}">${txt}</span>`;
 }
 
 function populateUnidadeSelects() {
-['n-unidade','mc-unidade'].forEach(id => {
+['n-unidade','mc-unidade','e-unidade'].forEach(id => {
 const sel = document.getElementById(id); if (!sel) return;
 const val = sel.value;
 sel.innerHTML = '<option value="">Selecionar unidade...</option>' + unidades.map(u => `<option value="${u}"${val===u?' selected':''}>${u}</option>`).join('');
@@ -499,18 +538,25 @@ return `<div class="return-item ${cls}"><div class="avatar ${avCls}">${initials(
 window.renderClientes = function() {
 const busca=(document.getElementById('search-input')?.value||'').toLowerCase();
 const filtStatus=document.getElementById('filter-status')?.value||'';
+const filtData=document.getElementById('filter-data')?.value||'';
 const lista=db.filter(c=>{
 const match=!busca||c.nome.toLowerCase().includes(busca)||(c.placa||'').toLowerCase().includes(busca)||c.tel.includes(busca);
 let sm=true;
 if(filtStatus==='retornaram') sm=c.visitas&&c.visitas.length>0;
 else if(filtStatus) sm=getStatus(c)===filtStatus;
-return match&&sm;
+const dm=!filtData||c.dataServico===filtData;
+return match&&sm&&dm;
 }).sort((a,b)=>parseDate(b.dataServico)-parseDate(a.dataServico));
 if(!lista.length){document.getElementById('clientes-list').innerHTML='<div class="empty"><div class="empty-icon">🔍</div>Nenhum cliente encontrado.</div>';return;}
 document.getElementById('clientes-list').innerHTML=`<div class="card">`+lista.map(c=>{
 const s=getStatus(c), voltou=c.visitas&&c.visitas.length>0;
-return `<div class="return-item"><div class="avatar">${initials(c.nome)}</div><div class="item-info"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="item-name">${c.nome}</span>${badgeHtml(s)}${voltou?`<span class="badge badge-green">↩ Retornou</span>`:''}</div><div class="item-sub">${c.veiculo||'—'} · ${c.placa||'—'} · Retorno: ${fmtBR(c.retornoEm)}</div></div><div class="item-actions"><button class="btn-icon" onclick="verCliente('${c.id}')">👁</button><button class="btn-icon" onclick="abrirContato('${c.id}')">📞</button><button class="btn-icon btn-danger" onclick="excluirCliente('${c.id}')">🗑</button></div></div>`;
+return `<div class="return-item"><div class="avatar">${initials(c.nome)}</div><div class="item-info"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="item-name">${c.nome}</span>${badgeHtml(s)}${voltou?`<span class="badge badge-green">↩ Retornou</span>`:''}</div><div class="item-sub">${c.veiculo||'—'} · ${c.placa||'—'} · Serviço: ${fmtBR(c.dataServico)} · Retorno: ${fmtBR(c.retornoEm)}</div></div><div class="item-actions"><button class="btn-icon" onclick="verCliente('${c.id}')" title="Ver detalhes">👁</button><button class="btn-icon" style="color:var(--blue)" onclick="abrirEdicao('${c.id}')" title="Editar cadastro">✏️</button><button class="btn-icon" onclick="abrirContato('${c.id}')" title="Registrar contato">📞</button><button class="btn-icon btn-danger" onclick="excluirCliente('${c.id}')" title="Excluir">🗑</button></div></div>`;
 }).join('')+'</div>';
+}
+
+window.limparFiltroData = function() {
+document.getElementById('filter-data').value = '';
+renderClientes();
 }
 
 function renderNaoCompareceu() {
@@ -595,6 +641,73 @@ const el=document.getElementById('form-msg'); el.className='form-msg '+tipo; el.
 if(tipo==='ok') setTimeout(()=>{el.innerHTML='';el.className='';},5000);
 }
 
+// ─── EDIÇÃO ───────────────────────────────────────────────────────────────────
+window.abrirEdicao = function(id) {
+currentEditId = id;
+const c = db.find(x => x.id === String(id)); if(!c) return;
+document.getElementById('e-nome').value = c.nome||'';
+document.getElementById('e-tel').value = c.tel||'';
+document.getElementById('e-placa').value = c.placa||'';
+document.getElementById('e-veiculo').value = c.veiculo||'';
+document.getElementById('e-data').value = c.dataServico||'';
+document.getElementById('e-km').value = c.km||'';
+document.getElementById('e-valor').value = c.valor||'';
+document.getElementById('e-obs').value = c.obs||'';
+// calcular meses do retorno
+if(c.dataServico && c.retornoEm) {
+const ds = parseDate(c.dataServico), re = parseDate(c.retornoEm);
+const meses = Math.round((re - ds) / (30.44 * 86400000));
+const sel = document.getElementById('e-meses');
+const opts = [1,2,3,4,5,6,7,8,9,10,11,12,16,18,24];
+const closest = opts.reduce((p,v) => Math.abs(v-meses)<Math.abs(p-meses)?v:p);
+sel.value = closest;
+}
+populateUnidadeSelects();
+document.getElementById('e-unidade').value = c.unidade||'';
+// filtros
+['oleo','ar','comb','cabine'].forEach(f => {
+const key = f==='comb'?'combustivel':f==='cabine'?'cabine':f;
+const el = document.getElementById('ef-'+f);
+const checked = c.filtros?.[key]||false;
+el.checked = checked;
+el.closest('.check-opt').classList.toggle('checked', checked);
+});
+document.getElementById('edit-msg').textContent='';
+fecharModal('modal-ver');
+document.getElementById('modal-edit').classList.add('open');
+}
+
+window.salvarEdicao = async function() {
+const c = db.find(x => x.id === String(currentEditId)); if(!c) return;
+const nome = document.getElementById('e-nome').value.trim();
+const tel = document.getElementById('e-tel').value.trim();
+const dataS = document.getElementById('e-data').value;
+if(!nome||!tel||!dataS){document.getElementById('edit-msg').style.cssText='color:var(--red);background:var(--red-light);padding:8px 12px;border-radius:6px;';document.getElementById('edit-msg').textContent='Preencha nome, telefone e data.';return;}
+const meses = parseInt(document.getElementById('e-meses').value);
+const dataSv = parseDate(dataS), retorno = new Date(dataSv);
+retorno.setMonth(retorno.getMonth()+meses);
+c.nome = nome;
+c.tel = tel;
+c.placa = document.getElementById('e-placa').value.trim().toUpperCase();
+c.veiculo = document.getElementById('e-veiculo').value.trim();
+c.unidade = document.getElementById('e-unidade').value;
+c.dataServico = fmt(dataSv);
+c.retornoEm = fmt(retorno);
+c.km = parseInt(document.getElementById('e-km').value)||0;
+c.valor = parseFloat(document.getElementById('e-valor').value)||0;
+c.filtros = {
+oleo: document.getElementById('ef-oleo').checked,
+ar: document.getElementById('ef-ar').checked,
+combustivel: document.getElementById('ef-comb').checked,
+cabine: document.getElementById('ef-cabine').checked
+};
+c.obs = document.getElementById('e-obs').value.trim();
+await saveCliente(c);
+fecharModal('modal-edit');
+renderClientes(); renderAlertas();
+}
+
+// ─── CONTATOS ─────────────────────────────────────────────────────────────────
 window.toggleUnidadeAgendamento = function() {
 const r=document.getElementById('mc-resultado').value, g=document.getElementById('mc-unidade-group');
 if(r.includes('Agendou')){g.style.display='flex';g.style.flexDirection='column';g.style.gap='5px';}
@@ -623,6 +736,7 @@ else if(proxdata){c.retornoEm=proxdata;c.status='ok';}
 await saveCliente(c); fecharModal('modal-contato'); renderAlertas(); renderClientes();
 }
 
+// ─── VER CLIENTE ──────────────────────────────────────────────────────────────
 window.verCliente = function(id) {
 currentViewId=id; const c=db.find(x=>x.id===String(id)); if(!c) return;
 document.getElementById('mv-title').textContent=c.nome;
