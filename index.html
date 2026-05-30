@@ -191,6 +191,8 @@ table.detail td:first-child { color: var(--muted); width: 130px; }
 <option value="agendado">Agendado</option>
 <option value="retornaram">Retornaram ✓</option>
 </select>
+<input type="date" id="filter-data" onchange="renderClientes()" title="Filtrar por data de retorno" />
+<button class="btn btn-ghost" onclick="document.getElementById('filter-data').value='';renderClientes();" style="white-space:nowrap;font-size:12px;padding:6px 10px;">✕ Data</button>
 </div>
 <div id="clientes-list"></div>
 </div>
@@ -468,12 +470,14 @@ return `<div class="return-item ${cls}"><div class="avatar ${avCls}">${initials(
 window.renderClientes = function() {
 const busca=(document.getElementById('search-input')?.value||'').toLowerCase();
 const filtStatus=document.getElementById('filter-status')?.value||'';
+const filtData=document.getElementById('filter-data')?.value||'';
 const lista=db.filter(c=>{
 const match=!busca||c.nome.toLowerCase().includes(busca)||(c.placa||'').toLowerCase().includes(busca)||c.tel.includes(busca);
 let sm=true;
 if(filtStatus==='retornaram') sm=c.visitas&&c.visitas.length>0;
 else if(filtStatus) sm=getStatus(c)===filtStatus;
-return match&&sm;
+const dm=!filtData||(c.dataServico===filtData);
+return match&&sm&&dm;
 }).sort((a,b)=>parseDate(b.dataServico)-parseDate(a.dataServico));
 if(!lista.length){document.getElementById('clientes-list').innerHTML='<div class="empty"><div class="empty-icon">🔍</div>Nenhum cliente encontrado.</div>';return;}
 document.getElementById('clientes-list').innerHTML=`<div class="card">`+lista.map(c=>{
